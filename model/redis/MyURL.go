@@ -1,4 +1,4 @@
-package redisurl
+package redis
 
 import (
 	"URL_Shortener/global"
