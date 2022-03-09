@@ -7,33 +7,20 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
-func Insert(expireAt, id, url string) error {
+func SetURL(id, url, expireAt string) error {
 	c := global.Redis_Pool.Get()
 	defer c.Close()
 
-	if expireAt == "" {
-		c.Send("set", id, "")
-		c.Send("expire", id, 1000)
-	} else {
-		c.Send("set", id, url)
-		t, _ := time.Parse(time.RFC3339, expireAt)
-		if t.After(time.Now().Add(time.Hour)) {
-			c.Send("expire", id, 3600)
-		} else {
-			c.Send("expireat", id, t.Unix())
-		}
-	}
-
+	c.Send("set", id, url)
+	t, _ := time.Parse(time.RFC3339, expireAt)
+	c.Send("expireat", id, t.Unix())
 	c.Flush()
 
 	_, err := c.Receive()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
-func SelectByID(id string) (string, error) {
+func GetURL(id string) (string, error) {
 	c := global.Redis_Pool.Get()
 	defer c.Close()
 	url, err := redis.String(c.Do("get", id))
@@ -41,4 +28,13 @@ func SelectByID(id string) (string, error) {
 		return "", err
 	}
 	return url, err
+}
+
+func UpdateURL(id, expireAt string) error {
+	c := global.Redis_Pool.Get()
+	defer c.Close()
+
+	t, _ := time.Parse(time.RFC3339, expireAt)
+	_, err := c.Do("expireat", id, t.Unix())
+	return err
 }
