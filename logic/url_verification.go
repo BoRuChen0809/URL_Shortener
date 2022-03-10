@@ -15,6 +15,8 @@ func VerifyURL(path string) bool {
 		return false
 	case "localhost:8080":
 		return false
+	case "127.0.0.1:8080":
+		return false
 	}
 
 	req, err := http.NewRequest(http.MethodGet, path, nil)
