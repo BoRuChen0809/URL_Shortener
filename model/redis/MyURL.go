@@ -7,13 +7,12 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
-func SetURL(id, url, expireAt string) error {
+func SetURL(id, url string, expireAt time.Time) error {
 	c := global.Redis_Pool.Get()
 	defer c.Close()
 
 	c.Send("set", id, url)
-	t, _ := time.Parse(time.RFC3339, expireAt)
-	c.Send("expireat", id, t.Unix())
+	c.Send("expireat", id, expireAt.Unix())
 	c.Flush()
 
 	_, err := c.Receive()
@@ -30,11 +29,10 @@ func GetURL(id string) (string, error) {
 	return url, err
 }
 
-func UpdateURL(id, expireAt string) error {
+func UpdateURL(id string, expireAt time.Time) error {
 	c := global.Redis_Pool.Get()
 	defer c.Close()
 
-	t, _ := time.Parse(time.RFC3339, expireAt)
-	_, err := c.Do("expireat", id, t.Unix())
+	_, err := c.Do("expireat", id, expireAt.Unix())
 	return err
 }

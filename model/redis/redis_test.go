@@ -9,7 +9,7 @@ import (
 
 func Test_redis(t *testing.T) {
 	test_url := model.MyURL{ExpireAt: time.Now().Add(time.Hour), URL: "test_url"}
-	err := redis.SetURL("test", test_url.URL, test_url.ExpireAt.Format(time.RFC3339))
+	err := redis.SetURL("test", test_url.URL, test_url.ExpireAt)
 	if err != nil {
 		t.Error(err)
 	}
@@ -24,8 +24,7 @@ func Test_redis(t *testing.T) {
 }
 
 func Test_seturl(t *testing.T) {
-	time := time.Now().Add(10 * time.Minute).Format(time.RFC3339)
-	err := redis.SetURL("Test_id", "Test_URL", time)
+	err := redis.SetURL("Test_id", "Test_URL", time.Now().Add(10*time.Minute))
 	if err != nil {
 		t.Error(err)
 	}
@@ -40,7 +39,7 @@ func Test_geturl(t *testing.T) {
 }
 
 func Test_updateurl(t *testing.T) {
-	time := time.Now().Add(100 * time.Minute).Format(time.RFC3339)
+	time := time.Now().Add(100 * time.Minute)
 	err := redis.UpdateURL("Test_id", time)
 	if err != nil {
 		t.Error(err)

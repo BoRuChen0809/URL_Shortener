@@ -14,42 +14,38 @@ import (
 	"gorm.io/gorm"
 )
 
-func AddURL(c *gin.Context) {
-	m := make(map[string]interface{})
+type post_url struct {
+	ExpireAt time.Time `json:"expireAt"`
+	URL      string    `json:"url"`
+}
 
-	//JSON轉map
-	if err := c.BindJSON(&m); err != nil {
+func AddURL(c *gin.Context) {
+	//m := make(map[string]interface{})
+
+	var data_url post_url
+	if err := c.BindJSON(&data_url); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "參數解析錯誤"})
 		return
 	}
 
-	//處理url
-	url := fmt.Sprint(m["url"])
-	if url == "" || !logic.VerifyURL(url) {
+	if data_url.URL == "" || !logic.VerifyURL(data_url.URL) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "url錯誤"})
 		return
 	}
 
-	//處理expire_at
-	str_time := fmt.Sprint(m["expireAt"])
-	expire_at, err := time.Parse(time.RFC3339, str_time)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "expireAt解析錯誤"})
-		return
-	}
-	if expire_at.Before(time.Now()) {
+	if data_url.ExpireAt.Before(time.Now()) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "expireAt已過期"})
 		return
 	}
 
 	//資料庫讀寫
 	var hash_id string
-	my_url, mysql_read_err := mysql.ReadByURL(url)
+	my_url, mysql_read_err := mysql.ReadByURL(data_url.URL)
 	if mysql_read_err != gorm.ErrRecordNotFound && mysql_read_err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "發生內部錯誤"})
 		return
 	} else if mysql_read_err == gorm.ErrRecordNotFound {
-		my_url := model.MyURL{URL: url, ExpireAt: expire_at}
+		my_url := model.MyURL{URL: data_url.URL, ExpireAt: data_url.ExpireAt}
 		id, err := mysql.Create(my_url)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "發生內部錯誤"})
@@ -60,25 +56,26 @@ func AddURL(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "發生內部錯誤"})
 			return
 		}
-		err = redis.SetURL(hash_id, url, str_time)
+		err = redis.SetURL(hash_id, data_url.URL, data_url.ExpireAt)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "發生內部錯誤"})
 			return
 		}
 	} else {
+		var err error
 		hash_id, err = my_hashids.NewHashID(my_url.ID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "發生內部錯誤"})
 			return
 		}
-		if my_url.ExpireAt.Before(expire_at) {
-			my_url.ExpireAt = expire_at
+		if my_url.ExpireAt.Before(data_url.ExpireAt) {
+			my_url.ExpireAt = data_url.ExpireAt
 			err := mysql.Update(*my_url)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"message": "發生內部錯誤"})
 				return
 			}
-			err = redis.UpdateURL(hash_id, str_time)
+			err = redis.UpdateURL(hash_id, data_url.ExpireAt)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"message": "發生內部錯誤"})
 				return
